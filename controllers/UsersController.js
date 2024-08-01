@@ -1,7 +1,8 @@
 import sha1 from 'sha1';
 import dbClient from '../utils/db';
+import { isUserAuthorized } from './AuthController';
 
-class UsersController {
+export default class UsersController {
   static async postNew(req, res) {
     if (!req.body.email) {
       res.status(400).json({ error: 'Missing email' });
@@ -31,6 +32,13 @@ class UsersController {
 
     res.status(201).json(user);
   }
-}
 
-export default UsersController;
+  static async getMe(req, res) {
+    const authorized = await isUserAuthorized(req);
+    if (!authorized) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+    res.status(200).json({ id: authorized.user._id, email: authorized.user.email });
+  }
+}

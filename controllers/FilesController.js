@@ -17,17 +17,17 @@ export default class FilesController {
     }
     const userId = authorized.user._id;
     if (!req.body.name) {
-      res.status(400).send({ error: 'Missing data' });
+      res.status(400).json({ error: 'Missing data' });
       return;
     }
     const { name } = req.body;
     if (!req.body.type) {
-      res.status(400).send({ error: 'Missing type' });
+      res.status(400).json({ error: 'Missing type' });
       return;
     }
     const { type } = req.body;
     if (!req.body.data && type !== 'folder') {
-      res.status(400).send({ error: 'Missing data' });
+      res.status(400).json({ error: 'Missing data' });
       return;
     }
     const parentId = req.body.parentId || 0;
@@ -36,11 +36,11 @@ export default class FilesController {
     if (req.body.parentId) {
       const parent = await fileCollection.findOne({ _id: ObjectId(parentId) });
       if (!parent) {
-        res.status(400).send({ error: 'Parent not found' });
+        res.status(400).json({ error: 'Parent not found' });
         return;
       }
       if (parent.type !== 'folder') {
-        res.status(400).send({ error: 'Parent is not a folder' });
+        res.status(400).json({ error: 'Parent is not a folder' });
         return;
       }
     }

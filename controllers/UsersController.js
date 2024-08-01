@@ -1,33 +1,35 @@
-import dbClient from "../utils/db";
 import sha1 from 'sha1';
-
+import dbClient from '../utils/db';
 
 class UsersController {
   static async postNew(req, res) {
     if (!req.body.email) {
-      res.status(400).send({ error: 'Missing email' });
+      res.status(400).json({ error: 'Missing email' });
+      return;
     }
     if (!req.body.password) {
-      res.status(400).send({ error: 'Missing password' });
+      res.status(400).json({ error: 'Missing password' });
+      return;
     }
 
-    const email = req.body.email;
-    const password = req.body.password;
+    const { email } = req.body;
+    const { password } = req.body;
 
     const userCollection = dbClient.db.collection('users');
     const checkUser = await userCollection.findOne({ email });
     if (checkUser) {
-      res.status(400).send({ error: 'User already exists' });
+      res.status(400).json({ error: 'User already exists' });
+      return;
     }
     const hash = sha1(password);
 
-    let result = await userCollection.insertOne({ email, password: hash });
+    const result = await userCollection.insertOne({ email, password: hash });
     const user = {
       id: result.insertedId,
-      email
+      email,
     };
 
-    res.status(201).send(user);
+    res.status(201).json(user);
   }
 }
 

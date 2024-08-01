@@ -1,6 +1,5 @@
-import AppController from "../controllers/AppController";
-import UsersController from "../controllers/UsersController";
-
+import AppController from '../controllers/AppController';
+import UsersController from '../controllers/UsersController';
 
 const mapRoutes = (app) => {
   app.get('/status', AppController.getStatus);

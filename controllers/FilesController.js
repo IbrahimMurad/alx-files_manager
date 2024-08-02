@@ -9,10 +9,8 @@ import { isUserAuthorized } from './AuthController';
 const writeFileAsync = promisify(writeFile);
 const mkdirAsync = promisify(mkdir);
 
-// get the file collection
-const fileCollection = dbClient.db.collection('files');
-
 const requiredData = ['name', 'type', 'data'];
+const maxItemsInPage = 20;
 
 // handle non-existing file data
 function fileDataExist(req, res) {
@@ -27,6 +25,7 @@ function fileDataExist(req, res) {
 
 // handle non-accepted parent id
 async function isAcceptedParentId(parentId, res) {
+  const fileCollection = dbClient.db.collection('files');
   const parent = await fileCollection.findOne({ _id: ObjectId(parentId) });
   if (!parent) {
     res.status(400).json({ error: 'Parent not found' });
@@ -50,6 +49,7 @@ async function saveFile(name, data) {
 
 export default class FilesController {
   static async postUpload(req, res) {
+    const fileCollection = dbClient.db.collection('files');
     // first check check if the user is authorized
     const authorized = await isUserAuthorized(req);
     if (!authorized) {
@@ -69,7 +69,7 @@ export default class FilesController {
     const isPublic = req.body.isPublic || false;
 
     // check if the parent exists and is a folder
-    if (parentId && !await isAcceptedParentId(parentId, res, fileCollection)) {
+    if (parentId && !await isAcceptedParentId(parentId, res)) {
       return;
     }
 
@@ -89,5 +89,70 @@ export default class FilesController {
         id: storedFile.insertedId, userId, name, type, isPublic, parentId,
       });
     }
+  }
+
+  static async getShow(req, res) {
+    // first check check if the user is authorized
+    const authorized = await isUserAuthorized(req);
+    if (!authorized) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+    const userId = authorized.user._id;
+    const fileId = req.params.id;
+    const fileCollection = dbClient.db.collection('files');
+    const file = await fileCollection.findOne({ _id: ObjectId(fileId), userId: ObjectId(userId) });
+    if (!file) {
+      res.status(404).json({ error: 'Not found' });
+      return;
+    }
+    res.status(200).json({
+      id: file._id,
+      userId: file.userId,
+      name: file.name,
+      type: file.type,
+      isPublic: file.isPublic,
+      parentId: file.parentId,
+    });
+  }
+
+  static async getIndex(req, res) {
+    // first check check if the user is authorized
+    const authorized = await isUserAuthorized(req);
+    if (!authorized) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+    const userId = authorized.user._id;
+
+    // setting the query to get the files
+    let query;
+    if (!req.query.parentId) {
+      query = { userId: ObjectId(userId) };
+    } else {
+      query = { userId: ObjectId(userId), parentId: ObjectId(req.query.parentId) };
+    }
+
+    // setting the page number to be 0 if not provided
+    const page = req.query.page > -1 ? req.query.page : 0;
+
+    // get the files paginated
+    const fileCollection = dbClient.db.collection('files');
+    const files = await fileCollection.aggregate([
+      { $match: query },
+      { $skip: page * maxItemsInPage },
+      { $limit: maxItemsInPage },
+    ]).toArray();
+
+    // send the files
+    const filesToSend = files.map((file) => ({
+      id: file._id,
+      userId: file.userId,
+      name: file.name,
+      type: file.type,
+      isPublic: file.isPublic,
+      parentId: file.parentId,
+    }));
+    res.status(200).json(filesToSend);
   }
 }

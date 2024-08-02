@@ -49,7 +49,6 @@ async function saveFile(name, data) {
 
 export default class FilesController {
   static async postUpload(req, res) {
-    const fileCollection = dbClient.db.collection('files');
     // first check check if the user is authorized
     const authorized = await isUserAuthorized(req);
     if (!authorized) {
@@ -74,7 +73,7 @@ export default class FilesController {
     }
 
     if (type === 'folder') {
-      const addedFolder = await fileCollection.insertOne({
+      const addedFolder = await dbClient.fileCollection.insertOne({
         userId: ObjectId(userId), name, type, parentId,
       });
       res.status(201).json({
@@ -82,7 +81,7 @@ export default class FilesController {
       });
     } else {
       const localPath = await saveFile(name, req.body.data);
-      const storedFile = await fileCollection.insertOne({
+      const storedFile = await dbClient.fileCollection.insertOne({
         userId: ObjectId(userId), name, type, parentId: ObjectId(parentId), isPublic, localPath,
       });
       res.status(201).json({
@@ -100,8 +99,9 @@ export default class FilesController {
     }
     const userId = authorized.user._id;
     const fileId = req.params.id;
-    const fileCollection = dbClient.db.collection('files');
-    const file = await fileCollection.findOne({ _id: ObjectId(fileId), userId: ObjectId(userId) });
+    const file = await dbClient.fileCollection.findOne(
+      { _id: ObjectId(fileId), userId: ObjectId(userId) },
+    );
     if (!file) {
       res.status(404).json({ error: 'Not found' });
       return;
@@ -137,8 +137,7 @@ export default class FilesController {
     const page = req.query.page > -1 ? req.query.page : 0;
 
     // get the files paginated
-    const fileCollection = dbClient.db.collection('files');
-    const files = await fileCollection.aggregate([
+    const files = await dbClient.fileCollection.aggregate([
       { $match: query },
       { $skip: page * maxItemsInPage },
       { $limit: maxItemsInPage },
@@ -154,5 +153,63 @@ export default class FilesController {
       parentId: file.parentId,
     }));
     res.status(200).json(filesToSend);
+  }
+
+  static async putPublish(req, res) {
+    // first check check if the user is authorized
+    const authorized = await isUserAuthorized(req);
+    if (!authorized) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+    const userId = authorized.user._id;
+    const fileId = req.params.id;
+    const file = await dbClient.fileCollection.findOne(
+      { _id: ObjectId(fileId), userId: ObjectId(userId) },
+    );
+    if (!file) {
+      res.status(404).json({ error: 'Not found' });
+      return;
+    }
+    await dbClient.fileCollection.updateOne(
+      { _id: ObjectId(fileId) },
+      { $set: { isPublic: true } },
+    );
+    res.status(200).json({
+      id: file._id,
+      userId: file.userId,
+      name: file.name,
+      type: file.type,
+      isPublic: true,
+      parentId: file.parentId,
+    });
+  }
+
+  static async putUnpublish(req, res) {
+    // first check check if the user is authorized
+    const authorized = await isUserAuthorized(req);
+    if (!authorized) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+    const userId = authorized.user._id;
+    const fileId = req.params.id;
+    const file = await dbClient.fileCollection.findOne({ _id: ObjectId(fileId), userId: ObjectId(userId), type: 'file' });
+    if (!file) {
+      res.status(404).json({ error: 'Not found' });
+      return;
+    }
+    await dbClient.fileCollection.updateOne(
+      { _id: ObjectId(fileId) },
+      { $set: { isPublic: false } },
+    );
+    res.status(200).json({
+      id: file._id,
+      userId: file.userId,
+      name: file.name,
+      type: file.type,
+      isPublic: false,
+      parentId: file.parentId,
+    });
   }
 }

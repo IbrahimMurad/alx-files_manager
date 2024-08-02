@@ -16,8 +16,7 @@ async function isConnectAuthorized(req) {
     }
     const email = userData[0];
     const password = userData[1];
-    const userCollection = dbClient.db.collection('users');
-    const user = await userCollection.findOne({ email });
+    const user = await dbClient.userCollection.findOne({ email });
     if (!user) {
       return false;
     }
@@ -40,8 +39,7 @@ export async function isUserAuthorized(req) {
     if (!_id) {
       return false;
     }
-    const userCollection = dbClient.db.collection('users');
-    const user = await userCollection.findOne({ _id: ObjectId(_id) });
+    const user = await dbClient.userCollection.findOne({ _id: ObjectId(_id) });
     if (!user) {
       return false;
     }

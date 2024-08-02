@@ -8,6 +8,8 @@ class DBClient {
   constructor() {
     this.client = new MongoClient(`mongodb://${host}:${port}/`, { useUnifiedTopology: true });
     this.db = null;
+    this.fileCollection = null;
+    this.userCollection = null;
     this.connected = false;
     this.connect();
   }
@@ -17,6 +19,8 @@ class DBClient {
       await this.client.connect();
       this.connected = true;
       this.db = this.client.db(database);
+      this.fileCollection = this.db.collection('files');
+      this.userCollection = this.db.collection('users');
     } catch (error) {
       this.connected = false;
     }
@@ -27,14 +31,12 @@ class DBClient {
   }
 
   async nbUsers() {
-    const userCollection = this.db.collection('users');
-    const count = await userCollection.countDocuments();
+    const count = await this.userCollection.countDocuments();
     return count;
   }
 
   async nbFiles() {
-    const fileCollection = this.db.collection('files');
-    const count = await fileCollection.countDocuments();
+    const count = await this.fileCollection.countDocuments();
     return count;
   }
 }

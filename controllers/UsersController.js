@@ -16,15 +16,14 @@ export default class UsersController {
     const { email } = req.body;
     const { password } = req.body;
 
-    const userCollection = dbClient.db.collection('users');
-    const checkUser = await userCollection.findOne({ email });
+    const checkUser = await dbClient.userCollection.findOne({ email });
     if (checkUser) {
       res.status(400).json({ error: 'User already exists' });
       return;
     }
     const hash = sha1(password);
 
-    const result = await userCollection.insertOne({ email, password: hash });
+    const result = await dbClient.userCollection.insertOne({ email, password: hash });
     const user = {
       id: result.insertedId,
       email,

@@ -18,7 +18,7 @@ export default class UsersController {
 
     const checkUser = await dbClient.userCollection.findOne({ email });
     if (checkUser) {
-      res.status(400).json({ error: 'User already exists' });
+      res.status(400).json({ error: 'Already exist' });
       return;
     }
     const hash = sha1(password);

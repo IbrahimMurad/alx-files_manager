@@ -1,13 +1,15 @@
-import { mkdir, writeFile } from 'fs';
+import { mkdir, writeFile, readFile } from 'fs';
 import { ObjectId } from 'mongodb';
 import { v4 as uuidv4 } from 'uuid';
 import { promisify } from 'util';
+import { lookup, contentType } from 'mime-types';
 import dbClient from '../utils/db';
 import { isUserAuthorized } from './AuthController';
 
 // promisify the fs functions
 const writeFileAsync = promisify(writeFile);
 const mkdirAsync = promisify(mkdir);
+const readFileAsync = promisify(readFile);
 
 const requiredData = ['name', 'type', 'data'];
 const maxItemsInPage = 20;
@@ -211,5 +213,31 @@ export default class FilesController {
       isPublic: false,
       parentId: file.parentId,
     });
+  }
+
+  static async getFile(req, res) {
+    const fileId = req.params.id;
+    const file = await dbClient.fileCollection.findOne({ _id: ObjectId(fileId) });
+    if (!file) {
+      res.status(404).json({ error: 'Not found' });
+      return;
+    }
+    const authorized = await isUserAuthorized(req);
+    if (!file.isPublic && (!authorized || authorized.user._id !== file.userId)) {
+      res.status(404).json({ error: 'Not found' });
+      return;
+    }
+    if (file.type === 'folder') {
+      res.status(400).json({ error: 'A folder doesn\'t have content' });
+      return;
+    }
+    try {
+      const data = await readFileAsync(file.localPath);
+      const mimeType = contentType(lookup(file.name));
+      res.setHeader('Content-Type', mimeType);
+      res.status(200).send(data);
+    } catch (error) {
+      res.status(404).json({ error: 'Not found' });
+    }
   }
 }

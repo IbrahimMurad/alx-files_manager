@@ -27,8 +27,7 @@ function fileDataExist(req, res) {
 
 // handle non-accepted parent id
 async function isAcceptedParentId(parentId, res) {
-  const fileCollection = dbClient.db.collection('files');
-  const parent = await fileCollection.findOne({ _id: ObjectId(parentId) });
+  const parent = await dbClient.fileCollection.findOne({ _id: parentId });
   if (!parent) {
     res.status(400).json({ error: 'Parent not found' });
     return false;
@@ -66,7 +65,7 @@ export default class FilesController {
     // intialize the variables
     const userId = authorized.user._id;
     const { name, type } = req.body;
-    const parentId = req.body.parentId || 0;
+    const parentId = req.body.parentId ? ObjectId(req.body.parentId) : 0;
     const isPublic = req.body.isPublic || false;
 
     // check if the parent exists and is a folder
@@ -76,7 +75,7 @@ export default class FilesController {
 
     if (type === 'folder') {
       const addedFolder = await dbClient.fileCollection.insertOne({
-        userId: ObjectId(userId), name, type, parentId,
+        userId: ObjectId(userId), name, type, isPublic, parentId,
       });
       res.status(201).json({
         id: addedFolder.insertedId, userId, name, type, isPublic, parentId,
@@ -84,7 +83,7 @@ export default class FilesController {
     } else {
       const localPath = await saveFile(name, req.body.data);
       const storedFile = await dbClient.fileCollection.insertOne({
-        userId: ObjectId(userId), name, type, parentId: ObjectId(parentId), isPublic, localPath,
+        userId: ObjectId(userId), name, type, parentId, isPublic, localPath,
       });
       res.status(201).json({
         id: storedFile.insertedId, userId, name, type, isPublic, parentId,
@@ -196,7 +195,8 @@ export default class FilesController {
     }
     const userId = authorized.user._id;
     const fileId = req.params.id;
-    const file = await dbClient.fileCollection.findOne({ _id: ObjectId(fileId), userId: ObjectId(userId), type: 'file' });
+    const query = { _id: ObjectId(fileId), userId: ObjectId(userId) };
+    const file = await dbClient.fileCollection.findOne(query);
     if (!file) {
       res.status(404).json({ error: 'Not found' });
       return;
@@ -223,7 +223,8 @@ export default class FilesController {
       return;
     }
     const authorized = await isUserAuthorized(req);
-    if (!file.isPublic && (!authorized || authorized.user._id !== file.userId)) {
+    // eslint-disable-next-line max-len
+    if (!file.isPublic && (!authorized || authorized.user._id.toString() !== file.userId.toString())) {
       res.status(404).json({ error: 'Not found' });
       return;
     }

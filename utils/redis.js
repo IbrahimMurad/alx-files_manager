@@ -10,12 +10,7 @@ class RedisClient {
   }
 
   isAlive() {
-    try {
-      const response = this.client.ping;
-      return response === 'PONG';
-    } catch (error) {
-      return false;
-    }
+    return this.client.connected;
   }
 
   async get(key) {

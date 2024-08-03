@@ -9,9 +9,9 @@ class RedisClient {
     });
   }
 
-  async isAlive() {
+  isAlive() {
     try {
-      const response = await promisify(this.client.ping).bind(this.client)();
+      const response = this.client.ping;
       return response === 'PONG';
     } catch (error) {
       return false;

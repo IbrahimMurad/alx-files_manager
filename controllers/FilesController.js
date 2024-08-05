@@ -1,4 +1,5 @@
 import { mkdir, writeFile, readFile } from 'fs';
+import { Bull } from 'bull';
 import { ObjectId } from 'mongodb';
 import { v4 as uuidv4 } from 'uuid';
 import { promisify } from 'util';
@@ -88,6 +89,10 @@ export default class FilesController {
       res.status(201).json({
         id: storedFile.insertedId, userId, name, type, isPublic, parentId,
       });
+      if (type === 'image') {
+        const fileQueue = new Bull('fileQueue');
+        fileQueue.add({ userId, fileId: storedFile.insertedId });
+      }
     }
   }
 
@@ -233,7 +238,8 @@ export default class FilesController {
       return;
     }
     try {
-      const data = await readFileAsync(file.localPath);
+      const filePath = (file.type === 'image' && req.query.size) ? `${file.localPath}_${req.query.size}` : file.localPath;
+      const data = await readFileAsync(filePath);
       const mimeType = contentType(lookup(file.name));
       res.setHeader('Content-Type', mimeType);
       res.status(200).send(data);

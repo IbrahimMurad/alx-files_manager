@@ -1,4 +1,5 @@
 import sha1 from 'sha1';
+import { Bull } from 'bull';
 import dbClient from '../utils/db';
 import { isUserAuthorized } from './AuthController';
 
@@ -30,6 +31,8 @@ export default class UsersController {
     };
 
     res.status(201).json(user);
+    const userQueue = new Bull('userQueue');
+    await userQueue.add({ userId: user.id });
   }
 
   static async getMe(req, res) {
